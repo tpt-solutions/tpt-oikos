@@ -1,0 +1,246 @@
+ TPT Oikos: Tokenomics & Economic Model (Draft v0.1)
+1. Core Economic Philosophy
+TPT Oikos tokenomics is designed for the autonomous AI agent economy, where transactions occur at machine speed in nano-denominations. The model prioritizes:
+Predictable fee structures for high-frequency agent transactions
+Mathematical conservation of value (no hidden inflation or value leakage)
+Self-sustaining security without reliance on perpetual token emission
+Zero dust accumulation for micro-payment streams
+2. Dual-Token Architecture
+Token 1: OIKOS (The Governance & Staking Token)
+Purpose: Network security, governance, and validator staking
+Supply: Fixed cap of 1,000,000,000 OIKOS (1 billion)
+Precision: 18 decimal places (standard for governance tokens)
+Distribution:
+40% - Genesis validators and early infrastructure contributors
+30% - Protocol treasury (controlled by DAO governance)
+20% - Community ecosystem grants and agent developer incentives
+10% - Founding team and core contributors (4-year vesting)
+Token 2: Koin (The Settlement & Gas Token)
+Purpose: Transaction fees, agent micropayments, streaming revenue
+Supply: Elastic supply with algorithmic stability (see Section 4)
+Precision: i128 (38 decimal places) for nano-denominated transactions
+Acquisition: Purchased with OIKOS or earned through agent work
+Key Property: 1 Koin = 1 unit of compute (deterministic gas pricing)
+Why Dual-Token?
+OIKOS is a long-term store of value and governance instrument (low velocity)
+Koin is a high-velocity medium of exchange optimized for machine transactions
+Separation prevents governance attacks via transaction spam
+Agents can hold Koin for operations without exposing principals to OIKOS volatility
+3. Fee Structure & Gas Model
+Deterministic Gas Pricing
+Unlike legacy chains where gas prices fluctuate based on mempool congestion, TPT Oikos uses deterministic gas pricing based on computational complexity:
+// Gas cost is proven at compile time via tpt-telos
+@requires(complexity_score <= MAX_BLOCK_COMPLEXITY)
+fn calculate_gas_cost(operation: Operation) -> u128 {
+    // Base cost + (computational_steps * cost_per_step) + (storage_bytes * storage_cost)
+    let base = 1000; // 1000 Koin base fee
+    let compute = operation.steps * 10; // 10 Koin per computational step
+    let storage = operation.state_bytes * 100; // 100 Koin per byte stored
+    
+    base + compute + storage
+}
+Key Features:
+No auction mechanism: Gas price is fixed, eliminating front-running and priority fee wars
+Predictable for agents: AI agents can calculate exact transaction costs before execution
+Block capacity limits: Instead of price rationing, the network uses hard block complexity limits (proven via tpt-eidos to prevent DoS)
+Fee Distribution
+Every transaction fee (paid in Koin) is split:
+70% - Burned: Permanently removed from circulation (deflationary pressure on Koin)
+20% - Validator rewards: Distributed to settlement nodes proportionally
+10% - Protocol treasury: Funds public goods and ecosystem development
+Invariant (Conservation of Value):
+@invariant
+fn fee_conservation(tx: Transaction) -> bool {
+    tx.fee_paid == tx.burned + tx.validator_reward + tx.treasury_contribution
+}
+Koin Elastic Supply Mechanism
+Koin supply adjusts algorithmically to maintain purchasing power stability relative to compute costs.
+Target: 1 Koin = 1 unit of baseline compute
+If compute demand increases (more agents, more transactions), Koin supply expands
+If compute demand decreases, Koin supply contracts (via burning)
+Supply Adjustment Algorithm
+// Adjusted every 1000 blocks (~10 minutes)
+fn adjust_koin_supply(current_block: Block) -> SupplyAdjustment {
+    let target_compute_price = 1.0; // 1 Koin per compute unit
+    let actual_compute_price = calculate_average_gas_price(last_100_blocks);
+    
+    let deviation = (actual_compute_price - target_compute_price) / target_compute_price;
+    
+    if deviation.abs() < 0.01 {
+        return SupplyAdjustment::None; // Within 1% tolerance
+    }
+    
+    // Mint or burn Koin to correct deviation
+    let adjustment_factor = deviation * 0.1; // 10% correction per cycle
+    let supply_change = current_koin_supply * adjustment_factor;
+    
+    if supply_change > 0 {
+        SupplyAdjustment::Mint(supply_change) // Distributed to validators
+    } else {
+        SupplyAdjustment::Burn(supply_change.abs()) // Taken from validator rewards
+    }
+}
+Guarantee: The elastic supply ensures that agent economics remain predictable regardless of network load.
+5. Validator & Settlement Node Economics
+Staking Requirements
+Minimum stake: 100,000 OIKOS (to run a settlement node)
+Slashing conditions:
+Double-signing: 50% of stake slashed
+Downtime (>1 hour): 1% of stake slashed per incident
+Invalid state proof: 10% of stake slashed
+Reward Distribution
+Validators earn:
+Block rewards: Newly minted OIKOS (emission schedule below)
+Transaction fees: 20% of all Koin fees (see Section 3)
+State proof bounties: Rewards for submitting fraud proofs (if applicable)
+OIKOS Emission Schedule
+OIKOS emission is disinflationary and halts after 20 years:
+Year
+Annual Emission
+Cumulative Supply
+1
+50,000,000
+450,000,000
+2
+40,000,000
+490,000,000
+3
+32,000,000
+522,000,000
+4
+25,600,000
+547,600,000
+5
+20,480,000
+568,080,000
+...
+...
+...
+20
+~100,000
+~999,900,000
+Post-20 years: No new OIKOS minted. Validators rely entirely on transaction fees.
+6. Agent Economics & Mandate Budgeting
+Agent Wallet Structure
+AI agents operate under tpt-aegis mandates with structured budgets:
+struct AgentMandate {
+    principal: DID,
+    agent: DID,
+    koin_budget: u128,           // Total Koin allocated
+    koin_spent: u128,            // Running total spent
+    oikos_budget: u128,          // Optional: for governance participation
+    time_bound: Timestamp,       // Mandate expiration
+    scope: Vec<ContractAddress>, // Allowed contracts
+}
+
+@invariant
+fn mandate_budget_constraint(mandate: &AgentMandate) -> bool {
+    mandate.koin_spent <= mandate.koin_budget
+}
+Micropayment Streams
+Agents can establish streaming payments (e.g., paying for API access per second):
+contract StreamingPayment {
+    state: {
+        payer: DID,
+        payee: DID,
+        rate_per_second: u64,      // Koin per second
+        start_time: Timestamp,
+        last_settlement: Timestamp,
+        total_deposited: u128,
+        total_withdrawn: u128,
+    }
+
+    @invariant
+    fn conservation_of_value(state: &State) -> bool {
+        state.total_withdrawn <= state.total_deposited
+    }
+
+    @invariant
+    fn stream_rate_valid(state: &State) -> bool {
+        // Rate must be provably sustainable given deposit
+        let duration = current_time() - state.start_time;
+        state.rate_per_second * duration <= state.total_deposited
+    }
+}
+Settlement: Streams settle every 100 blocks (~10 minutes) or on-demand, with cryptographic proof of elapsed time and amount owed.
+7. Treasury & Public Goods Funding
+Protocol Treasury
+The 10% fee allocation + unclaimed ecosystem grants flow into a DAO-controlled treasury.
+Treasury Spending Rules
+@requires(proposal.approval_quorum >= 0.67) // 67% of staked OIKOS
+@requires(proposal.execution_cost <= treasury.balance)
+@ensures(treasury.balance == old(treasury.balance) - proposal.execution_cost)
+fn execute_treasury_proposal(proposal: TreasuryProposal) -> Result<(), Error> {
+    // Transfer funds to designated recipient
+    tpt_koinon::transfer(proposal.recipient, proposal.amount);
+    Ok(())
+}
+Public Goods Incentives
+The treasury funds:
+Agent developer grants: Subsidies for building verified agent tooling
+Security bounties: Rewards for finding edge cases in tpt-telos proofs
+Infrastructure subsidies: Discounts for early agent adopters
+8. Anti-Inflation & Value Conservation Guarantees
+Mathematical Invariants
+The entire tokenomics model is governed by provable invariants:
+// Global invariant: Total value is conserved
+@invariant
+fn total_value_conservation() -> bool {
+    let total_oikos = oikos.total_supply();
+    let total_koin = koin.total_supply();
+    let total_treasury = treasury.balance();
+    let total_staked = validators.total_staked();
+    let total_circulating = wallets.total_balances();
+    
+    // All tokens must be accounted for
+    total_oikos == total_staked + total_circulating + total_treasury &&
+    total_koin == total_circulating + total_treasury
+}
+
+// Fee invariant: No value leakage
+@invariant
+fn fee_conservation(tx: Transaction) -> bool {
+    tx.fee_paid == tx.burned + tx.validator_reward + tx.treasury_contribution
+}
+
+// Mandate invariant: Agents cannot overspend
+@invariant
+fn mandate_solvency(mandate: &AgentMandate) -> bool {
+    mandate.koin_spent <= mandate.koin_budget
+}
+These invariants are proven at compile time via tpt-telos and verified at runtime by tpt-eidos. If any invariant would be violated, the transaction is rejected.
+9. Comparison to Legacy Models
+Feature
+Legacy Chain (ETH/SOL)
+TPT Oikos
+Gas pricing
+Auction-based, volatile
+Deterministic, fixed
+Fee destination
+Mostly burned or to validators
+70% burned, 20% validators, 10% treasury
+Token model
+Single token (gas + governance)
+Dual token (OIKOS governance, Koin settlement)
+Supply model
+Fixed or inflationary
+OIKOS fixed, Koin elastic
+Agent support
+Not optimized for microtransactions
+Native i128 precision, streaming payments
+Value conservation
+Heuristic (audits)
+Mathematically proven invariants
+10. Open Questions & Research Areas
+Koin Stability Mechanism: Is the elastic supply algorithm sufficient, or do we need a reserve fund (like Algorithmic Stablecoins)?
+Cross-Chain Bridging: How do agents bring external value into Oikos without breaking conservation invariants?
+Agent Reputation Economics: Should high-reputation agents (via tpt-eve) receive fee discounts?
+Quantum Resistance: Should OIKOS/Koin migrate to post-quantum cryptography, and what are the economic implications?
+11. Summary
+TPT Oikos tokenomics is designed from first principles for the autonomous machine economy:
+Dual-token model separates governance (OIKOS) from high-velocity settlement (Koin)
+Deterministic gas pricing eliminates auction volatility for predictable agent economics
+Elastic Koin supply maintains stable purchasing power relative to compute
+Mathematical invariants guarantee conservation of value at every layer
+DAO-controlled treasury funds public goods without reliance on inflation
+The entire model is formally verifiable via tpt-telos, ensuring that the economic rules are as rigorous as the consensus logic itself.

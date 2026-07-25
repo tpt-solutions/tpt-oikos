@@ -1,0 +1,121 @@
+[workspace]
+resolver = "2"
+members = [
+    # --- EIDOS: Consensus Kernel ---
+    "pillars/eidos/crates/eidos-parser",
+    "pillars/eidos/crates/eidos-verifier",
+    "pillars/eidos/crates/eidos-kernel",
+    "pillars/eidos/crates/eidos-erasure",
+    "pillars/eidos/crates/eidos-codegen",
+    "pillars/eidos/crates/eidos-flight-math",
+    "pillars/eidos/crates/eidos-cli",
+    "pillars/eidos/crates/eidos-tests",
+    # --- TELOS: Execution & Verification ---
+    "pillars/telos/crates/telos-parser",
+    "pillars/telos/crates/telos-ir",
+    "pillars/telos/crates/telos-verifier",
+    "pillars/telos/crates/telos-router",
+    "pillars/telos/crates/telos-agent",
+    "pillars/telos/crates/telos-codegen",
+    "pillars/telos/crates/telos-lsp",
+    "pillars/telos/crates/telos-cli",
+    # --- ARCHON: Storage Kernel Substrate ---
+    "pillars/archon/crates/tpt-archon-core",
+    "pillars/archon/crates/tpt-archon-bridge",
+    "pillars/archon/crates/tpt-archon-kernel",
+    "pillars/archon/crates/tpt-archon-relational",
+    "pillars/archon/crates/out-archon-sql",
+    # --- KOINON: Settlement & AI Economy ---
+    "pillars/koinon/koinon-ledger",
+    "pillars/koinon/koinon-gas",
+    "pillars/koinon/koinon-fee",
+    "pillars/koinon/koinon-mandates",
+    "pillars/koinon/koinon-escrow",
+    "pillars/koinon/koinon-dag",
+    "pillars/koinon/koinon-staking",
+    "pillars/koinon/koinon-rewards",
+    "pillars/koinon/koinon-treasury",
+    "pillars/koinon/koinon-cli",
+    # --- CHORA: Human Observation Runtime ---
+    "pillars/chora/chora-render",
+    "pillars/chora/chora-ui",
+    "pillars/chora/chora-data",
+    "pillars/chora/chora-cli",
+]
+exclude = [
+    # Verification harness — pulls git deps (eidos-verifier, telos-*, gpu-ir-spec).
+    # Built only by the opt-in CI verify job.
+    "pillars/archon/crates/out-archon-verify",
+    "pillars/archon/benches",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+license = "Apache-2.0 OR MIT"
+authors = ["TPT Solutions"]
+repository = "https://github.com/AnarKitted/tpt-oikos"
+homepage = "https://github.com/AnarKitted/tpt-oikos"
+documentation = "https://docs.rs/tpt-oikos"
+keywords = ["verification", "proof", "formal-methods", "consensus", "settlement"]
+categories = ["compilers", "command-line-utilities", "development-tools"]
+
+[workspace.dependencies]
+# --- Eidos crates ---
+tpt-eidos-parser = { path = "pillars/eidos/crates/eidos-parser" }
+tpt-eidos-verifier = { path = "pillars/eidos/crates/eidos-verifier" }
+tpt-eidos-kernel = { path = "pillars/eidos/crates/eidos-kernel" }
+tpt-eidos-erasure = { path = "pillars/eidos/crates/eidos-erasure" }
+tpt-eidos-codegen = { path = "pillars/eidos/crates/eidos-codegen" }
+tpt-eidos-flight-math = { path = "pillars/eidos/crates/eidos-flight-math" }
+
+# --- Telos crates ---
+tpt-telos-parser = { path = "pillars/telos/crates/telos-parser" }
+tpt-telos-ir = { path = "pillars/telos/crates/telos-ir" }
+tpt-telos-verifier = { path = "pillars/telos/crates/telos-verifier" }
+tpt-telos-router = { path = "pillars/telos/crates/telos-router" }
+tpt-telos-agent = { path = "pillars/telos/crates/telos-agent" }
+tpt-telos-codegen = { path = "pillars/telos/crates/telos-codegen" }
+tpt-telos-lsp = { path = "pillars/telos/crates/telos-lsp" }
+
+# --- Archon crates ---
+tpt-archon-core = { path = "pillars/archon/crates/tpt-archon-core" }
+tpt-archon-bridge = { path = "pillars/archon/crates/tpt-archon-bridge" }
+tpt-archon-kernel = { path = "pillars/archon/crates/tpt-archon-kernel" }
+tpt-archon-relational = { path = "pillars/archon/crates/tpt-archon-relational" }
+
+# --- Koinon crates ---
+koinon-ledger = { path = "pillars/koinon/koinon-ledger" }
+koinon-dag = { path = "pillars/koinon/koinon-dag" }
+koinon-mandates = { path = "pillars/koinon/koinon-mandates" }
+koinon-escrow = { path = "pillars/koinon/koinon-escrow" }
+koinon-gas = { path = "pillars/koinon/koinon-gas" }
+koinon-fee = { path = "pillars/koinon/koinon-fee" }
+koinon-staking = { path = "pillars/koinon/koinon-staking" }
+koinon-rewards = { path = "pillars/koinon/koinon-rewards" }
+koinon-treasury = { path = "pillars/koinon/koinon-treasury" }
+
+# --- Chora crates ---
+chora-render = { path = "pillars/chora/chora-render" }
+chora-ui = { path = "pillars/chora/chora-ui" }
+chora-data = { path = "pillars/chora/chora-data" }
+
+# --- External dependencies ---
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+sha2 = "0.10"
+proptest = "1"
+ureq = { version = "2", features = ["json"] }
+z3 = "0.12"
+wgpu = "24"
+winit = "0.30"
+bytemuck = { version = "1", features = ["derive"] }
+pollster = "0.4"
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+[profile.release]
+opt-level = 3
+lto = true

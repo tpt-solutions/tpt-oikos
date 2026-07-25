@@ -1,0 +1,12 @@
+[package]
+name = "koinon-rewards"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Block rewards and emission schedule integration"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+koinon-fee = { workspace = true }
+thiserror = "2"

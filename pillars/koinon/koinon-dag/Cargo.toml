@@ -1,0 +1,12 @@
+[package]
+name = "koinon-dag"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Transaction DAG structure and parallel settlement"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+koinon-gas = { workspace = true }
+thiserror = "2"

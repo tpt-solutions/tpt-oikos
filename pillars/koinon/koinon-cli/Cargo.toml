@@ -1,0 +1,25 @@
+[package]
+name = "koinon-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "CLI binary for tpt-koinon settlement layer"
+
+[[bin]]
+name = "koinon"
+path = "src/main.rs"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+koinon-dag = { workspace = true }
+koinon-mandates = { workspace = true }
+koinon-escrow = { workspace = true }
+koinon-gas = { workspace = true }
+koinon-fee = { workspace = true }
+tpt-telos-parser = { workspace = true }
+tpt-telos-ir = { workspace = true }
+tpt-telos-verifier = { workspace = true }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"

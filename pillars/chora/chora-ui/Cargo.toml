@@ -1,0 +1,12 @@
+[package]
+name = "chora-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "UI primitives for agent dashboards: panels, text, charts, status indicators"
+
+[dependencies]
+chora-render.workspace = true
+bytemuck.workspace = true
+serde.workspace = true

@@ -1,0 +1,11 @@
+[package]
+name = "koinon-mandates"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Agent mandate management, budget enforcement, and scope checking"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+thiserror = "2"

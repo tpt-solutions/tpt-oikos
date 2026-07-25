@@ -1,0 +1,11 @@
+[package]
+name = "koinon-treasury"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "DAO treasury governance and spend proposals"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+thiserror = "2"

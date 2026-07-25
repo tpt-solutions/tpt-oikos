@@ -1,0 +1,115 @@
+TPT Oikos: Architectural Design Document (v1.1)
+Project Name: TPT Oikos (The Proof-Native Estate Protocol)
+Core Pillars: tpt-eidos (Kernel), tpt-telos (Execution), tpt-koinon (Settlement), tpt-aegis (Identity), tpt-chora (Runtime)
+Status: Draft / Conceptual Design
+Date: July 25, 2026
+1. Executive Summary
+TPT Oikos (from the ancient Greek oikos, meaning "household" or "estate," and the root of "economy") is a vertically integrated, proof-native compute fabric designed specifically for the autonomous AI agent economy.
+Legacy blockchains are built for human speculation, relying on slow consensus, vulnerable smart contracts, and web2 browser interfaces. They are fundamentally unsafe for autonomous agents, which require sub-second, nano-denominated settlements with absolute mathematical certainty.
+TPT Oikos replaces this fragile stack with a cryptographically guaranteed commonwealth. By unifying a dependently-typed kernel (tpt-eidos), an SMT-verified execution layer (tpt-telos), a high-velocity settlement DAG (tpt-koinon), mandate-gated identity (tpt-aegis), and a secure GPU-rendered observation layer (tpt-chora), Oikos ensures that AI agents can transact, negotiate, and operate under human delegation with zero logical or financial risk.
+2. Core Design Principles
+Mathematical Correctness Over Heuristics: Code is not trusted; it is proven. If a contract’s behavior cannot be mathematically verified against its specification, it is rejected at compile time.
+Absolute Error Prevention: The system is designed to make common vulnerabilities (reentrancy, integer overflow, unauthorized state mutation) structurally impossible to express in the language.
+Conservation of Value: Inherited from tpt-koinon, every state transition must mathematically prove that value is neither created nor destroyed unexpectedly during transfers, escrow, or streaming micropayments.
+Zero-Copy Performance: Data is never unnecessarily duplicated across the network, kernel, or storage layers, ensuring maximum throughput and minimal latency for high-frequency machine-to-machine transactions.
+Capability-Based Security: Access to system resources, state, and network functions is governed by strict, unforgeable capabilities, eliminating ambient authority.
+3. System Architecture (The 5 Pillars of Oikos)
+Pillar 1: The Consensus Kernel (tpt-eidos)
+Purpose: The foundational, safety-critical state machine.
+Implementation: Written in tpt-eidos, a proof-native, dependently-typed systems language.
+Guarantee: "Types are theorems, programs are proofs." The tpt-eidos compiler acts as a theorem prover, refusing to emit binary code unless the consensus logic is mathematically verified. Through zero-cost proof erasure, it compiles down to highly optimized Rust/C binaries, running at bare-metal speeds with a guarantee that the network will never panic, fork, or halt due to unhandled edge cases.
+Pillar 2: The Execution & Verification Layer (tpt-telos)
+Purpose: Formally verified transaction logic and smart contracts.
+Implementation: Developers (or AI agents) write logic in tpt-telos, declaring intent and invariants. Every function carries @requires and @ensures contracts.
+Guarantee: The tpt-telos-verifier discharges these constraints using a self-contained Fourier-Motzkin SMT-style solver. If the math allows a value extraction that violates the invariant, the compiler refuses to build. Reentrancy and logic errors are eliminated at the source.
+Pillar 3: The Settlement & AI Economy Layer (tpt-koinon)
+Purpose: High-velocity, sub-second settlement for the autonomous economy.
+Implementation: An append-only transaction DAG (Directed Acyclic Graph) rather than a traditional linear blockchain, enabling parallel, nano-denominated (Koin, i128 precision) transactions without bottlenecks.
+Guarantee: Built-in conservation-of-value invariants ensure that micropayments, streaming revenue, and agent-to-agent escrow are settled instantly and immutably, with cryptographic proof of finality.
+Pillar 4: Identity & Mandate Governance (tpt-aegis / tpt-warden)
+Purpose: Cryptographically enforced, human-delegated spending authority.
+Implementation: AI agents do not hold unrestricted private keys. They operate under Mandate chains: scoped, budget-capped, time-bound, and RBAC-enforced delegation policies mapped to Decentralized Identifiers (DIDs) and Verifiable Credentials (VCs).
+Guarantee: Even if an AI agent's logic hallucinates or is compromised, the tpt-warden layer physically prevents it from exceeding its authorized spend limit or interacting with unauthorized contracts.
+Pillar 5: The Human Observation Runtime (tpt-chora)
+Purpose: Secure, GPU-accelerated presentation and interaction for human overseers.
+Implementation: Replaces the vulnerable HTML/JS web browser stack. Smart contract frontends and agent dashboards are rendered natively via a secure wgpu render graph.
+Guarantee: Eliminates UI spoofing, clipboard hijacking, and phishing. The human sees a mathematically verified, tamper-proof representation of the agent's state and mandates.
+4. Developer & Agent Workflow: A Verified Micropayment Stream
+Here is how an AI agent (or developer) would deploy a verified streaming payment contract on TPT Oikos:
+
+// 1. Define the State and Invariant (The "Telos")
+contract StreamingPayment {
+    state: payer: DID, payee: DID, rate_per_second: u64, total_deposited: u128, total_withdrawn: u128
+
+    // Invariant: Withdrawn can never exceed deposited (Conservation of Value)
+    @invariant
+    fn conservation_of_value(state: &State) -> bool {
+        state.total_withdrawn <= state.total_deposited
+    }
+
+    // 2. Define Constraints (Extracted to QF_LRA for SMT solving)
+    @requires(amount > 0)
+    @requires(state.total_withdrawn + amount <= state.total_deposited)
+    @ensures(state.total_withdrawn == old(state.total_withdrawn) + amount)
+    func withdraw(amount: u128, caller: DID) -> Result<(), Error> {
+        // 3. The Logic
+        // The Fourier-Motzkin solver proves this logic satisfies the @ensures 
+        // contract and the global invariant. If a bug allows over-withdrawal, 
+        // tpt-telos refuses to compile.
+        
+        require(caller == state.payee, Error::Unauthorized);
+        state.total_withdrawn += amount;
+        tpt_koinon::transfer(state.payee, amount);
+        Ok(())
+    }
+}
+
+Deployment: The agent runs tpt verify. The toolchain generates the bytecode and the formal proof. The TPT Oikos node receives both, verifies the proof in milliseconds, and commits the contract to the tpt-eidos state machine.
+5. Threat Model & Security Guarantees
+Threat Vector
+Legacy Stack (EVM + Web3.js + Browser)
+TPT Oikos (Vertically Integrated Proof-Native Stack)
+Consensus Halts/Panics
+Possible (unhandled edge cases in Go/C++)
+Impossible: tpt-eidos dependent typing guarantees all state transitions are handled.
+Smart Contract Hacks
+Rampant (Reentrancy, logic errors, oracle manipulation)
+Eliminated: tpt-telos SMT verification proves invariants before deployment.
+Agent Runaway Spending
+High Risk (unrestricted private keys)
+Mitigated: tpt-aegis mandate chains physically cap budget, time, and scope.
+Phishing/Front-end Hacks
+High Risk (Malicious DOM, clipboard hijacking)
+Eliminated: tpt-chora wgpu pipeline removes the browser attack surface entirely.
+6. Implementation Roadmap
+Phase 1: Foundations (Months 1-6)
+Finalize tpt-telos language specification and SMT verifier integration.
+Build the tpt-eidos microkernel skeleton with zero-copy P2P networking.
+Draft the tpt-koinon DAG consensus and conservation-of-value proofs.
+Phase 2: Alpha Testnet (Months 7-12)
+Deploy a single-node, local testnet.
+Write formal proofs for core primitives (DID registration, basic tpt-koinon transfers, tpt-aegis mandate creation).
+Internal testing of AI agent RFP negotiation (tpt-eve) settling on tpt-koinon.
+Phase 3: Public Testnet & Audits (Months 13-18)
+Multi-node distributed testnet.
+Third-party academic review of the formal proofs, compiler soundness, and tpt-chora rendering security.
+Performance benchmarking of the zero-copy storage stack and DAG throughput.
+Phase 4: Mainnet Genesis (Month 18+)
+Launch with a minimal, mathematically verified genesis state.
+Gradual decentralization of validator capabilities and agent mandate delegation.
+7. Conclusion: The Closed-Loop Advantage
+Most distributed systems are "Frankenstein" architectures: a C++ core trying to talk to a Solidity VM, rendered through a JavaScript web browser, managed by loosely held private keys. Every layer boundary is a potential security vulnerability and a performance bottleneck.
+TPT Oikos is a closed-loop system. Because the stack is vertically integrated—from the dependently-typed kernel (eidos) and verified compiler (telos), to the high-velocity settlement DAG (koinon), mandate-gated identity (aegis), and secure rendering engine (chora)—Oikos can optimize across boundaries that other networks cannot touch.
+It is not just a blockchain. It is the cryptographically guaranteed estate management system for the autonomous future.
+
+
+
+Pillar 4: The Sovereign Identity & Delegation Layer (tpt-identity)
+Purpose: The cryptographic bridge between human intent and autonomous agent execution.
+Implementation: A pure-Go, self-sovereign identity server providing W3C Verifiable Credentials (VCs), Decentralized Identifiers (DIDs), and a full OIDC provider.
+Key Mechanisms:
+Identity Bridging: Maps traditional auth (WebAuthn/passkeys, OAuth, SAML) to a foundational platform DID.
+Selective Disclosure: Uses SD-JWT to allow AI agents to prove authorization (e.g., spending limits) without exposing the principal’s raw identity data.
+Safety Nets: Features M-of-N Shamir secret sharing for guardian recovery and "duress codes" that silently trigger session.duress webhooks to freeze agent mandates if a user is compromised.
+Verifiable Audit: Every consent grant and identity event is appended to a SHA-256 hash-chained log, making tampering mathematically detectable.
+Guarantee: Humans retain absolute, recoverable sovereignty over their digital estate, while AI agents operate strictly within cryptographically bound, auditable mandates.

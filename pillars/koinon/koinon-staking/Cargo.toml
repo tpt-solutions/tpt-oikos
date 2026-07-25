@@ -1,0 +1,11 @@
+[package]
+name = "koinon-staking"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Validator staking (100K OIKOS minimum) and slashing logic"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+thiserror = "2"

@@ -1,0 +1,105 @@
+# TPT Oikos — Build Checklist
+
+Source docs: `spec.txt` (architecture), `tokenomics.txt` (economic model).
+
+**Reality check (as of 2026-07-25):** This is not a from-scratch build. All pillars already
+exist as separate repos under `tpt-solutions`, but their real scope diverges from `spec.txt`.
+Final pillar composition for tpt-oikos:
+
+| Spec Pillar | Repo Used | Status |
+|---|---|---|
+| Kernel | `tpt-eidos` | Real, but scoped to a flight-control MVK — no DAG/consensus yet |
+| Execution/Verification | `tpt-telos` | Mature, matches spec closely |
+| Settlement | `tpt-koinon` | Matches well — already has mandates, escrow, streaming, RFP negotiation |
+| Identity | `tpt-identity` (replaces spec's `tpt-aegis`) | Real DIDs/VCs/OIDC, Go |
+| Human Observation | `tpt-chora` | Early (Phase 1, triangle demo); depends on `tpt-archon` |
+| Storage/Kernel substrate for chora | `tpt-archon` (not in original spec) | Early but functional |
+| ~~`tpt-aegis`~~ | dropped | Generic Auth0/Okta IAM, no DID/VC/mandate support — redundant with tpt-identity |
+| ~~`tpt-warden`~~ | dropped | Unrelated LDAP-replacement directory server |
+
+See **Open Risks / Gaps** at the bottom before committing to timelines.
+
+---
+
+## 0. Monorepo Setup
+
+- [x] Create `tpt-oikos` monorepo skeleton (this repo)
+- [x] Vendor `tpt-eidos` as a git submodule (`pillars/eidos`)
+- [x] Vendor `tpt-telos` as a git submodule (`pillars/telos`)
+- [x] Vendor `tpt-koinon` as a git submodule (`pillars/koinon`)
+- [x] Vendor `tpt-chora` as a git submodule (`pillars/chora`)
+- [x] Vendor `tpt-archon` as a git submodule (`pillars/archon`)
+- [x] Vendor `tpt-identity` as a git submodule (`pillars/identity`) — Go module, not part of Cargo workspace
+- [x] Create top-level `Cargo.toml` workspace including eidos, telos, koinon, chora, archon crates
+- [x] Confirm license compatibility across vendored repos (all Apache-2.0/MIT — should be fine, double-check)
+- [x] Set up top-level CI (build + test all Rust workspace members; separately build/test the Go `tpt-identity` module)
+- [x] Write root `ARCHITECTURE.md` capturing the pillar map above and how modules call into each other
+
+## 1. Phase 1 — Foundations (Months 1-6)
+
+### Per-pillar gap audit
+- [x] Audit `tpt-eidos`'s actual capabilities vs. spec's "consensus kernel" requirement; document what's missing (P2P networking, DAG hosting, validator state machine)
+- [x] Audit `tpt-koinon`'s existing `mandates/` module against `tokenomics.txt` §6 `AgentMandate` struct — identify field/behavior gaps
+- [x] Audit `tpt-chora`'s current wgpu render graph against the "render agent dashboards / contract state" requirement (currently just a triangle/path demo)
+- [x] Audit `tpt-identity`'s DID/VC/OIDC feature set against spec's DID-mapped mandate requirement — confirm it can represent agent DIDs, not just human ones
+
+### Verification pipeline
+- [ ] Wire `tpt-telos verify` into `tpt-koinon`'s transaction/contract deployment pipeline (verify before commit)
+- [x] Confirm `tpt-telos`'s `@invariant`/`@requires`/`@ensures` syntax can express `tokenomics.txt`'s conservation-of-value, fee-conservation, and mandate-solvency invariants
+- [x] Port the `StreamingPayment` example contract from `spec.txt` §4 into `tpt-telos`, verify it compiles/proves
+
+### Tokenomics — dual-token model
+- [x] Design OIKOS token type on top of `tpt-koinon`'s existing ledger/account crates (fixed 1B supply, 18 decimals)
+- [x] Design Koin token type (i128 precision, elastic supply) — check whether `tpt-koinon` already supports multi-denomination balances or needs extending
+- [x] Implement genesis distribution logic (40% validators / 30% treasury / 20% ecosystem / 10% team, 4yr vesting) — not executed yet, just implemented and tested
+- [x] Implement deterministic gas pricing formula (`base + steps*10 + storage_bytes*100`) as a `tpt-telos`-provable function
+- [x] Implement fee-split logic (70% burn / 20% validator / 10% treasury) with the `fee_conservation` invariant proven via `tpt-telos`
+- [x] Implement Koin elastic supply adjustment algorithm (every 1000 blocks, ±1% tolerance band, 10% correction factor)
+- [x] Write and prove the global `total_value_conservation` invariant from `tokenomics.txt` §8
+
+### Identity integration
+- [ ] Define how a `tpt-identity` DID maps to a `tpt-koinon` account/mandate principal
+- [x] Extend `tpt-identity` (or add a thin adapter) to issue Verifiable Credentials representing agent mandates (scope, budget, time-bound)
+- [x] Prove `mandate_budget_constraint` (`koin_spent <= koin_budget`) via `tpt-telos`, wire enforcement into `tpt-koinon` transfer logic
+
+### Kernel extension
+- [ ] Scope out what "DAG consensus" work needs to be added to `tpt-eidos` (or whether `tpt-koinon`'s existing DAG ledger is promoted to be the consensus layer instead — resolve overlap)
+- [ ] Draft zero-copy P2P networking design for whichever crate ends up owning consensus
+- [ ] Draft `tpt-koinon` conservation-of-value proofs for DAG-parallel transaction settlement (not just linear-chain)
+
+## 2. Phase 2 — Alpha Testnet (Months 7-12)
+
+- [ ] Build a `tpt-oikos` node binary that boots eidos + telos + koinon + identity together as one process
+- [ ] Deploy single-node local testnet
+- [ ] Write formal proofs (via `tpt-telos`) for: DID registration, basic `tpt-koinon` transfers, mandate creation
+- [ ] Exercise `tpt-koinon`'s existing RFP/negotiation crate for internal agent-to-agent negotiation, settling on koinon (this is the spec's "tpt-eve" concept)
+- [ ] Validate end-to-end flow: agent authenticates via `tpt-identity` DID → negotiates via `tpt-koinon` RFP → deploys/verifies a `tpt-telos` contract → settles a streaming payment
+- [ ] Basic observability/logging for the local testnet (pre-chora — plain text/logs are fine here)
+
+## 3. Phase 3 — Public Testnet & Audits (Months 13-18)
+
+- [ ] Implement multi-node networking in `tpt-eidos` (or promoted consensus crate) for a distributed testnet
+- [ ] Integrate `tpt-archon` as the storage substrate for `tpt-chora` (per tpt-chora's own architecture docs) and/or for eidos/koinon state storage
+- [ ] Extend `tpt-chora` beyond the triangle demo: render live agent mandate state and contract state pulled from `tpt-koinon`/`tpt-eidos`
+- [ ] Commission third-party academic review of: `tpt-telos` proof soundness, `tpt-eidos` compiler soundness, `tpt-chora` rendering security
+- [ ] Benchmark `tpt-archon`'s zero-copy storage stack under load
+- [ ] Benchmark `tpt-koinon` DAG throughput (nano-denominated, high-frequency transactions)
+- [ ] Validator staking implementation: 100,000 OIKOS minimum stake to run a settlement node
+- [ ] Slashing logic: double-signing (50%), downtime >1hr (1%/incident), invalid state proof (10%) — proven via `tpt-telos` where possible
+
+## 4. Phase 4 — Mainnet Genesis (Month 18+)
+
+- [ ] Finalize and freeze genesis state (OIKOS distribution, initial validator set)
+- [x] Implement OIKOS emission schedule (disinflationary, halts at year 20 per `tokenomics.txt` §5 table)
+- [ ] Implement DAO treasury spend flow (`execute_treasury_proposal`: 67% quorum requirement, proven via `tpt-telos`)
+- [ ] Public goods funding mechanisms: agent developer grants, security bounties, infra subsidies
+- [ ] Gradual decentralization plan for validator capabilities and mandate delegation authority
+- [ ] Mainnet launch checklist: security sign-off, genesis ceremony, public docs, incident response plan
+
+## 5. Open Risks / Gaps (revisit periodically)
+
+- [ ] **tpt-eidos consensus gap** — the spec calls it "the consensus kernel," but the real repo is a flight-control MVK with no DAG/P2P layer. Decide whether to build this into eidos or promote tpt-koinon's DAG ledger to be the actual consensus layer (avoid building two competing consensus implementations).
+- [ ] **tpt-chora / tpt-archon are both early-stage** — treat Phase 3 chora/archon timelines as optimistic; re-scope after Phase 1 audit.
+- [ ] **No existing repo implements agent-mandate DID linkage end-to-end** — this is new integration work spanning `tpt-identity` (issuance) and `tpt-koinon` (enforcement), not present in either repo today.
+- [ ] **tpt-koinon already has mandates/escrow/streaming/negotiation** — avoid duplicating this logic elsewhere in the monorepo; treat it as the source of truth for settlement primitives.
+- [ ] Re-verify this checklist's repo-status claims periodically — they're a snapshot from 2026-07-25 research and will drift as the vendored repos evolve independently.

@@ -1,0 +1,16 @@
+[package]
+name = "chora-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "CLI entry point for the tpt-chora Human Observation Runtime"
+
+[dependencies]
+chora-render.workspace = true
+chora-ui.workspace = true
+chora-data.workspace = true
+wgpu.workspace = true
+bytemuck.workspace = true
+pollster.workspace = true
+winit.workspace = true

@@ -1,0 +1,11 @@
+[package]
+name = "koinon-escrow"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Escrow and streaming payment primitives"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+thiserror = "2"

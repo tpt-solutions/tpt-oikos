@@ -1,0 +1,11 @@
+[package]
+name = "koinon-fee"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Fee split logic: burn / validator / treasury"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+thiserror = "2"

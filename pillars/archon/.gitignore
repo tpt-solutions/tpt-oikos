@@ -1,0 +1,25 @@
+# Build artifacts
+/target
+**/target
+
+# Backup files
+*.orig
+*.bak
+
+# IDE / editor
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust
+**/*.rs.bk
+*.pdb
+
+# Environment
+.env
+.env.local
+/.mimocode

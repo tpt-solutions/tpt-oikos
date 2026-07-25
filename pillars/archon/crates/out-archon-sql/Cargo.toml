@@ -1,0 +1,27 @@
+[package]
+name = "out-archon-sql"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Interactive SQL REPL for the TPT Archon database engine"
+publish = false
+
+# Not published: a dev/demo binary, not one of the layered architecture
+# crates (see CLAUDE.md). Package name carries the `out-archon-` prefix
+# per the workspace's publish/no-publish naming convention; the `archon-sql`
+# binary name below is what users actually type and stays unchanged.
+[[bin]]
+name = "archon-sql"
+path = "src/main.rs"
+
+[features]
+default = []
+sqlite-import = ["dep:rusqlite"]
+
+[dependencies]
+tpt-archon-relational = { path = "../tpt-archon-relational" }
+rusqlite = { version = "0.31", features = ["bundled"], optional = true }

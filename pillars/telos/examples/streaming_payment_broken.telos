@@ -1,0 +1,22 @@
+// BROKEN StreamingPayment — deliberately violates conservation of value.
+// tpt-telos should REJECT this at compile time.
+
+@boundary(cpu_bound)
+module StreamingPaymentBroken {
+    invariant Stream {
+        total_withdrawn >= 0
+        total_deposited >= 0
+        total_withdrawn <= total_deposited
+    }
+
+    // BUG: withdraw does NOT check that amount <= remaining deposit.
+    // This allows over-withdrawal, violating the conservation invariant.
+    func withdraw(s: Stream, amount: Int)
+        requires amount > 0
+        ensures s.total_withdrawn == old(s.total_withdrawn) + amount
+    {
+        mutate state {
+            s.total_withdrawn += amount
+        }
+    }
+}
