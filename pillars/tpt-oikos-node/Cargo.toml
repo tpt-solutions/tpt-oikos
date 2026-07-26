@@ -1,0 +1,31 @@
+[package]
+name = "tpt-oikos-node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "TPT Oikos node binary — boots the settlement layer"
+
+[[bin]]
+name = "oikos"
+path = "src/main.rs"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+koinon-dag = { workspace = true }
+koinon-mandates = { workspace = true }
+koinon-escrow = { workspace = true }
+koinon-gas = { workspace = true }
+koinon-fee = { workspace = true }
+koinon-staking = { workspace = true }
+koinon-rewards = { workspace = true }
+koinon-treasury = { workspace = true }
+tpt-telos-parser = { workspace = true }
+tpt-telos-ir = { workspace = true }
+tpt-telos-verifier = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+env_logger = "0.11"
+anyhow = "1"

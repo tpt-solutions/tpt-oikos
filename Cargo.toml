@@ -35,7 +35,11 @@ members = [
     "pillars/koinon/koinon-staking",
     "pillars/koinon/koinon-rewards",
     "pillars/koinon/koinon-treasury",
+    "pillars/koinon/koinon-network",
+    "pillars/koinon/koinon-node",
     "pillars/koinon/koinon-cli",
+    # --- Unified Node Binary ---
+    "pillars/tpt-oikos-node",
     # --- CHORA: Human Observation Runtime ---
     "pillars/chora/chora-render",
     "pillars/chora/chora-ui",
@@ -95,6 +99,9 @@ koinon-fee = { path = "pillars/koinon/koinon-fee" }
 koinon-staking = { path = "pillars/koinon/koinon-staking" }
 koinon-rewards = { path = "pillars/koinon/koinon-rewards" }
 koinon-treasury = { path = "pillars/koinon/koinon-treasury" }
+koinon-network = { path = "pillars/koinon/koinon-network" }
+koinon-node = { path = "pillars/koinon/koinon-node" }
+tpt-oikos-node = { path = "pillars/tpt-oikos-node" }
 
 # --- Chora crates ---
 chora-render = { path = "pillars/chora/chora-render" }

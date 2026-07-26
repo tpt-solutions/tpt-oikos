@@ -1,0 +1,78 @@
+# TPT Oikos Genesis Configuration
+# This file defines the initial state of the chain at genesis.
+
+[chain]
+chain_id = 1
+name = "tpt-oikos-mainnet"
+version = "1.0.0"
+
+[genesis]
+# Treasury balance at genesis (300M OIKOS in base units = 300 * 10^18)
+treasury_balance = "300000000000000000000000000"
+
+# Emission schedule starts at block 1
+# Year 1: 50M OIKOS, decaying 80% per year, halts at year 20
+
+[tokenomics]
+# OIKOS token parameters
+oikos_decimals = 18
+oikos_max_supply = "1000000000000000000000000000"  # 1B * 10^18
+
+# Koin token parameters (elastic supply)
+koin_precision = 38  # i128
+
+# Fee split: 70% burn / 20% validator / 10% treasury
+fee_burn_pct = 70
+fee_validator_pct = 20
+fee_treasury_pct = 10
+
+# Gas pricing
+gas_base_cost = 1000
+gas_per_step = 10
+gas_per_storage_byte = 100
+
+# Staking
+minimum_stake = "100000000000000000000000"  # 100K OIKOS * 10^18
+
+# Slashing
+slash_double_sign_pct = 50
+slash_invalid_proof_pct = 10
+slash_downtime_pct = 1
+jail_double_sign_blocks = 10000
+jail_invalid_proof_blocks = 5000
+
+# Treasury governance
+quorum_pct = 67
+
+# Elastic supply adjustment
+adjustment_interval_blocks = 1000
+target_compute_price = 1.0
+tolerance_band = 0.01
+correction_factor = 0.1
+
+[block]
+# Block production
+time_ms = 1000
+max_tx_per_block = 1000
+blocks_per_year = 31536000
+
+[network]
+# P2P networking
+max_peers = 50
+peer_timeout_secs = 30
+
+# Initial validators (add after genesis)
+[[validators]]
+# operator_did = "did:example:validator1"
+# stake = "100000000000000000000000"  # 100K OIKOS
+
+# Initial accounts (add after genesis)
+[[accounts]]
+# id = 1
+# oikos_balance = "400000000000000000000000000"  # 400M OIKOS (validators pool)
+# koin_balance = "0"
+
+[[accounts]]
+# id = 2
+# oikos_balance = "200000000000000000000000000"  # 200M OIKOS (ecosystem pool)
+# koin_balance = "0"

@@ -1,0 +1,32 @@
+[package]
+name = "koinon-node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Deployable TPT Oikos node with persistent state, block production, and RPC API"
+
+[[bin]]
+name = "koinon-node"
+path = "src/main.rs"
+
+[dependencies]
+koinon-ledger = { workspace = true }
+koinon-dag = { workspace = true }
+koinon-staking = { workspace = true }
+koinon-rewards = { workspace = true }
+koinon-treasury = { workspace = true }
+koinon-fee = { workspace = true }
+koinon-gas = { workspace = true }
+koinon-mandates = { workspace = true }
+koinon-escrow = { workspace = true }
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+clap = { version = "4", features = ["derive"] }
+sha2 = "0.10"
+log = "0.4"
+env_logger = "0.11"
+anyhow = "1"
+thiserror = "2"

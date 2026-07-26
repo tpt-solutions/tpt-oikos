@@ -1,24 +1,55 @@
+//! Slashing logic for validator misbehavior.
+//!
+//! Validators that submit conflicting blocks, submit invalid state proofs, or remain
+//! offline for too long are subject to stake penalties (slashes) and optional jail
+//! periods. This module provides pure calculation ([`calculate_slash`]), jail duration
+//! lookup ([`jail_duration`]), and the combined mutation ([`apply_slashing`]) that
+//! mutates a [`StakingPool`].
+
 use koinon_ledger::OikosAmount;
 use crate::staking::{StakingPool, StakingError, Validator};
 
+/// Reasons a validator can be slashed.
+///
+/// Each reason has a corresponding slash percentage and jail duration:
+/// - `DoubleSigning`: 50% slash, 10,000 block jail
+/// - `Downtime`: 1% slash if > 3600 blocks, no jail
+/// - `InvalidStateProof`: 10% slash, 5,000 block jail
 #[derive(Debug, Clone)]
 pub enum SlashingReason {
+    /// Validator signed two different blocks at the same height.
+    /// Slash: 50% of stake. Jail: 10,000 blocks.
     DoubleSigning,
+    /// Validator was offline for too long.
+    /// Slash: 1% if duration > 3600 blocks, 0 otherwise. No jail.
     Downtime { duration_blocks: u64 },
+    /// Validator submitted an invalid state proof.
+    /// Slash: 10% of stake. Jail: 5,000 blocks.
     InvalidStateProof,
 }
 
+/// Result of applying a slashing penalty to a validator.
 #[derive(Debug, Clone)]
 pub struct SlashingResult {
+    /// ID of the slashed validator.
     pub validator_id: u64,
+    /// Reason for the slash.
     pub reason: SlashingReason,
+    /// Validator's stake before slashing.
     pub original_stake: OikosAmount,
+    /// Amount deducted from stake.
     pub slash_amount: OikosAmount,
+    /// Validator's stake after slashing.
     pub remaining_stake: OikosAmount,
+    /// Whether the validator was jailed.
     pub jailed: bool,
+    /// Block number until which the validator is jailed (0 if not jailed).
     pub jailed_until: u64,
 }
 
+/// Calculate the slash amount for a given validator and reason.
+///
+/// Returns the amount of OIKOS to deduct from the validator's stake.
 pub fn calculate_slash(validator: &Validator, reason: &SlashingReason) -> OikosAmount {
     let stake = validator.staked_amount.0;
     let slash = match reason {
@@ -35,6 +66,11 @@ pub fn calculate_slash(validator: &Validator, reason: &SlashingReason) -> OikosA
     OikosAmount(slash)
 }
 
+/// Return the jail duration in blocks for a given slashing reason.
+///
+/// - `DoubleSigning`: 10,000 blocks
+/// - `Downtime`: 0 (no jail)
+/// - `InvalidStateProof`: 5,000 blocks
 pub fn jail_duration(reason: &SlashingReason) -> u64 {
     match reason {
         SlashingReason::DoubleSigning => 10_000,
@@ -43,6 +79,26 @@ pub fn jail_duration(reason: &SlashingReason) -> u64 {
     }
 }
 
+/// Apply a slashing penalty to a validator in the pool.
+///
+/// This computes the slash amount via [`calculate_slash`], mutates the validator's stake
+/// and slash history, optionally jails the validator, and updates the pool's `total_staked`.
+///
+/// # Arguments
+///
+/// * `pool` — The staking pool containing the validator.
+/// * `validator_id` — ID of the validator to slash.
+/// * `reason` — The misbehavior that triggered the slash.
+/// * `current_block` — The current block number (used to compute `jailed_until`).
+///
+/// # Errors
+///
+/// - [`StakingError::ValidatorNotFound`] if `validator_id` does not exist in the pool.
+///
+/// # Panics
+///
+/// This function does not panic (the `unwrap` on the second `get_mut` is safe because
+/// the key was already validated by the first `get`).
 pub fn apply_slashing(
     pool: &mut StakingPool,
     validator_id: u64,

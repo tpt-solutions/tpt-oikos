@@ -1,47 +1,92 @@
+//! Validator registration, staking, unstaking, and reward distribution.
+//!
+//! The central type is [`StakingPool`], which holds all validators and enforces
+//! invariants (minimum stake, conservation) across every mutation.
+
 use std::collections::HashMap;
 use koinon_ledger::{OikosAmount, TotalValueConservation};
 
+/// Minimum stake a validator must hold, in base units.
+///
+/// Equals `100_000 * 10^18`. Operations that would bring a validator's
+/// stake below this threshold are rejected, except for a full exit (unstake to zero).
 pub const MINIMUM_STAKE: u128 = 100_000 * 10_u128.pow(18);
 
+/// A registered validator in the staking pool.
+///
+/// Validators operator nodes that produce blocks and earn rewards.
+/// Each validator is identified by a DID (Decentralized Identifier)
+/// and must maintain at least [`MINIMUM_STAKE`] OIKOS to remain active.
 #[derive(Debug, Clone)]
 pub struct Validator {
+    /// Unique validator identifier (auto-incremented).
     pub id: u64,
+    /// DID of the operator running this validator.
     pub operator_did: String,
+    /// Current amount of OIKOS staked.
     pub staked_amount: OikosAmount,
+    /// Accumulated rewards not yet claimed (in base units).
     pub reward_debt: u128,
+    /// Whether the validator is active (not slashed/exited).
     pub active: bool,
+    /// Total amount slashed historically.
     pub slashed_amount: OikosAmount,
+    /// Block number when the validator was created.
     pub created_at: u64,
+    /// Block number until which the validator is jailed (0 = not jailed).
     pub jailed_until: u64,
 }
 
+/// The staking pool manages all validators and enforces invariants.
+///
+/// Central type for the staking subsystem. Tracks:
+/// - All registered validators
+/// - Total staked amount across all validators
+/// - Conservation of value via [`TotalValueConservation`]
+///
+/// # Invariants
+///
+/// - `total_staked` equals the sum of all validators' `staked_amount`
+/// - No active validator has stake below [`MINIMUM_STAKE`] (except full exit)
+/// - Jailed validators cannot receive rewards or accept new stakes
 #[derive(Debug, Clone)]
 pub struct StakingPool {
+    /// All registered validators, keyed by ID.
     pub validators: HashMap<u64, Validator>,
+    /// Total OIKOS staked across all validators.
     pub total_staked: OikosAmount,
+    /// Next validator ID to assign (auto-incremented).
     pub next_validator_id: u64,
+    /// Conservation tracker for the staking subsystem.
     pub conservation: TotalValueConservation,
 }
 
+/// Errors that can occur during staking operations.
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum StakingError {
+    /// The specified validator ID does not exist.
     #[error("validator not found: {0}")]
     ValidatorNotFound(u64),
 
+    /// Insufficient stake for the requested operation.
     #[error("insufficient stake: have {have}, need {need}")]
     InsufficientStake { have: u128, need: u128 },
 
+    /// Operation would bring stake below the minimum threshold.
     #[error("below minimum stake: current {current}, minimum {minimum}")]
     BelowMinimumStake { current: u128, minimum: u128 },
 
+    /// Validator is not active (slashed or exited).
     #[error("validator not active: {0}")]
     ValidatorNotActive(u64),
 
+    /// Validator is currently jailed.
     #[error("validator jailed: {0}")]
     ValidatorJailed(u64),
 }
 
 impl StakingPool {
+    /// Create a new empty staking pool.
     pub fn new() -> Self {
         Self {
             validators: HashMap::new(),
@@ -51,6 +96,11 @@ impl StakingPool {
         }
     }
 
+    /// Register a new validator with the given operator DID.
+    ///
+    /// Returns the assigned validator ID. The validator starts with zero stake
+    /// and must call [`stake`](Self::stake) to reach [`MINIMUM_STAKE`] before
+    /// becoming eligible for rewards.
     pub fn register_validator(&mut self, operator_did: &str) -> Result<u64, StakingError> {
         let id = self.next_validator_id;
         let validator = Validator {
@@ -68,6 +118,18 @@ impl StakingPool {
         Ok(id)
     }
 
+    /// Delegate additional OIKOS tokens to a validator.
+    ///
+    /// The validator must be active and not jailed. After staking, the total must
+    /// meet or exceed [`MINIMUM_STAKE`].
+    ///
+    /// # Errors
+    ///
+    /// - [`StakingError::ValidatorNotFound`] if `validator_id` does not exist.
+    /// - [`StakingError::ValidatorNotActive`] if the validator has been deactivated.
+    /// - [`StakingError::ValidatorJailed`] if the validator is currently jailed.
+    /// - [`StakingError::BelowMinimumStake`] if the resulting stake would be below the minimum.
+    /// - [`StakingError::InsufficientStake`] on arithmetic overflow.
     pub fn stake(&mut self, validator_id: u64, amount: OikosAmount) -> Result<(), StakingError> {
         let validator = self.validators.get_mut(&validator_id)
             .ok_or(StakingError::ValidatorNotFound(validator_id))?;
@@ -103,6 +165,17 @@ impl StakingPool {
         Ok(())
     }
 
+    /// Withdraw staked OIKOS tokens from a validator.
+    ///
+    /// A full exit (unstaking the entire balance) is allowed even when it drops the
+    /// validator to zero stake. Partial unstakes must leave at least [`MINIMUM_STAKE`].
+    ///
+    /// # Errors
+    ///
+    /// - [`StakingError::ValidatorNotFound`] if `validator_id` does not exist.
+    /// - [`StakingError::ValidatorNotActive`] if the validator has been deactivated.
+    /// - [`StakingError::InsufficientStake`] if the validator does not hold enough stake.
+    /// - [`StakingError::BelowMinimumStake`] if the remaining stake would be non-zero but below minimum.
     pub fn unstake(&mut self, validator_id: u64, amount: OikosAmount) -> Result<(), StakingError> {
         let validator = self.validators.get_mut(&validator_id)
             .ok_or(StakingError::ValidatorNotFound(validator_id))?;
@@ -135,25 +208,42 @@ impl StakingPool {
         Ok(())
     }
 
+    /// Retrieve a validator by ID.
+    ///
+    /// Returns `None` if no validator with the given ID exists.
     pub fn get_validator(&self, id: u64) -> Option<&Validator> {
         self.validators.get(&id)
     }
 
+    /// List all active, non-jailed validators.
+    ///
+    /// Returns validators whose `active` flag is `true` and `jailed_until` is `0`.
     pub fn active_validators(&self) -> Vec<&Validator> {
         self.validators.values()
             .filter(|v| v.active && v.jailed_until == 0)
             .collect()
     }
 
+    /// Returns the total OIKOS staked across all validators.
     pub fn total_staked(&self) -> OikosAmount {
         self.total_staked
     }
 
+    /// Check whether a validator is active and not jailed.
+    ///
+    /// Returns `false` if the validator does not exist, is inactive, or is jailed.
     pub fn is_active(&self, validator_id: u64) -> bool {
         self.validators.get(&validator_id)
             .map_or(false, |v| v.active && v.jailed_until == 0)
     }
 
+    /// Distribute a reward amount proportionally among active, non-jailed validators.
+    ///
+    /// Each validator's share is `validator.stake / total_staked * total_reward`.
+    /// The last validator in the iteration receives the remainder to avoid rounding loss.
+    /// Jailed and inactive validators receive nothing.
+    ///
+    /// This is a no-op when `total_reward` is zero or there are no active validators.
     pub fn distribute_rewards(&mut self, total_reward: OikosAmount) {
         if total_reward.0 == 0 {
             return;
@@ -194,6 +284,13 @@ impl StakingPool {
         }
     }
 
+    /// Claim all accumulated rewards for a validator.
+    ///
+    /// Returns the total rewards claimed and resets the validator's `reward_debt` to zero.
+    ///
+    /// # Errors
+    ///
+    /// - [`StakingError::ValidatorNotFound`] if `validator_id` does not exist.
     pub fn claim_rewards(&mut self, validator_id: u64) -> Result<OikosAmount, StakingError> {
         let validator = self.validators.get_mut(&validator_id)
             .ok_or(StakingError::ValidatorNotFound(validator_id))?;
@@ -204,6 +301,9 @@ impl StakingPool {
         Ok(OikosAmount(rewards))
     }
 
+    /// Verify the conservation invariant: sum of all validator stakes equals `total_staked`.
+    ///
+    /// Returns `true` if the invariant holds.
     pub fn check_invariant(&self) -> bool {
         let computed_total: u128 = self.validators.values()
             .map(|v| v.staked_amount.0)
@@ -447,4 +547,11 @@ mod tests {
     }
 
     #[test]
-    fn st
+    fn stake_nonexistent_validator() {
+        let mut pool = StakingPool::new();
+        assert!(matches!(
+            pool.stake(42, min_stake()),
+            Err(StakingError::ValidatorNotFound(42))
+        ));
+    }
+}

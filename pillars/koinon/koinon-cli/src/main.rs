@@ -134,45 +134,61 @@ fn cmd_verify(file: &PathBuf, json: bool) -> anyhow::Result<()> {
     let source = std::fs::read_to_string(file)
         .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", file.display(), e))?;
 
-    let module = tpt_telos_parser::parse(&source)
+    let modules = tpt_telos_parser::parse(&source)
         .map_err(|e| anyhow::anyhow!("Parse error in {}: {}", file.display(), e))?;
 
-    let report = tpt_telos_kernel::check(&module);
+    let problems = tpt_telos_ir::extract(&modules)
+        .map_err(|e| anyhow::anyhow!("IR extraction error in {}: {}", file.display(), e))?;
+
+    let mut all_passed = true;
+    let mut results: Vec<serde_json::Value> = Vec::new();
+
+    for problem in &problems {
+        let result = tpt_telos_verifier::verify(problem);
+        if !result.all_passed {
+            all_passed = false;
+        }
+        results.push(serde_json::json!({
+            "func_name": result.func_name,
+            "all_passed": result.all_passed,
+            "checks": result.checks.iter().map(|c| {
+                serde_json::json!({
+                    "description": c.description,
+                    "passed": c.passed,
+                })
+            }).collect::<Vec<_>>(),
+        }));
+    }
 
     if json {
         let output = serde_json::json!({
             "file": file.display().to_string(),
-            "passed": report.ok(),
-            "errors": report.errors.iter().map(|e| &e.message).collect::<Vec<_>>(),
-            "obligations": report.obligations.iter().map(|o| {
-                serde_json::json!({
-                    "description": o.description,
-                    "status": format!("{:?}", o.status),
-                })
-            }).collect::<Vec<_>>(),
+            "passed": all_passed,
+            "functions": results,
         });
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
         println!("Verifying {}", file.display());
-        if report.errors.is_empty() {
-            println!("  All constraints satisfied.");
-        } else {
-            for err in &report.errors {
-                println!("  ERROR: {}", err.message);
+        for r in &results {
+            let func_name = r["func_name"].as_str().unwrap_or("?");
+            let passed = r["all_passed"].as_bool().unwrap_or(false);
+            let status = if passed { "PASS" } else { "FAIL" };
+            println!("  [{status}] {func_name}");
+            for check in r["checks"].as_array().unwrap_or(&vec![]) {
+                let desc = check["description"].as_str().unwrap_or("?");
+                let cp = if check["passed"].as_bool().unwrap_or(false) { "PASS" } else { "FAIL" };
+                println!("    [{cp}] {desc}");
             }
         }
-        for ob in &report.obligations {
-            println!("  [{}] {}", ob.status as u8, ob.description);
-        }
         println!();
-        if report.ok() {
-            println!("RESULT: verification passed");
+        if all_passed {
+            println!("RESULT: all constraints satisfied");
         } else {
             println!("RESULT: verification FAILED");
         }
     }
 
-    if !report.ok() {
+    if !all_passed {
         std::process::exit(1);
     }
 
